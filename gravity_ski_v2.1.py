@@ -9,8 +9,7 @@ import os
 import sys
 import conn_param
 
-
-sys.setrecursionlimit(10000)
+#sys.setrecursionlimit(5000)
 
 # for a pixel p=(x,y) return a list of tuples of the 8 neighbors
 def neighborhood(p):
@@ -28,36 +27,184 @@ def neighborhood(p):
 def in_image(p,w,h):
     return p[0]>=0 and p[1]>=0 and p[0]<w and p[1]<h
 
-def detect_down(ref_p, height, min, target):
-	new_pt=[]
-	nbh = neighborhood(ref_p)
-	#new_pt.empty()
-	for n in nbh:
-		if in_image(n,w,h) and height[n] <= height[ref_p] and target[n]==0 and height[n]>=min:
-			target[n] = 1
-			new_pt.append(n)
+def detect_down(ref_p, height, threshold, min, target):
+	new_pt = []
+	if height[ref_p] > min:
+	
+	#First tests to see if D8 matrix is inside raster
+		if ref_p[0] - 1 >= 0:
+			rmin = ref_p[0] - 1
+		else:
+			rmin = 0
+		if ref_p[0] + 2 <= w:
+			rmax = ref_p[0] + 2
+		else:
+			rmax = w
+		if ref_p[1] - 1 >= 0:
+			cmin = ref_p[1] - 1
+		else:
+			cmin = 0
+		if ref_p[1] + 2 <= h:
+			cmax = ref_p[1] + 2
+		else:
+			cmax = h
+		
+		#D8 comparison level 1	
+		ref_mat = height[rmin:rmax,cmin:cmax]
+		tmptarget = target[rmin:rmax,cmin:cmax]
+		tmpsize = tmptarget.shape
+		targetzero = numpy.zeros((tmpsize[0], tmpsize[1]), numpy.int8)
+		targetzero = targetzero + 1 * numpy.logical_and(numpy.logical_and((ref_mat - height[ref_p] < 0),tmptarget==0), ref_mat >= min)
+		# print ref_p, height[ref_p]
+		# print rmin, rmax, cmin, cmax
+		# print tmptarget, ref_mat
+		# print tmpsize
+		# raw_input()
+		
+		#Fill target et retrieve new points
+		for n in numpy.argwhere(targetzero==1):
+			p = (n[0] + rmin, n[1] + cmin)
+			target[p] = 1
+			new_pt.append(p)
+		
+		tmptarget = tmptarget + targetzero
+		#First test to see if level 2 D8 matrix is inside raster
+		for n in numpy.argwhere(tmptarget==0):
+			p = (n[0] + rmin, n[1] + cmin)
+			if p[0] - 1 >= 0:
+				rmin2 = p[0] - 1
+			else:
+				rmin2 = 0
+			if p[0] + 2 <= w:
+				rmax2 = p[0] + 2
+			else:
+				rmax2 = w
+			if p[1] - 1 >= 0:
+				cmin2 = p[1] - 1
+			else:
+				cmin2 = 0
+			if p[1] + 2 <= h:
+				cmax2 = p[1] + 2
+			else:
+				cmax2 = h
+			#D8 comparison level 2
+			if height[p] <= height[ref_p] + threshold:
+				ref_mat2 = height[rmin2:rmax2,cmin2:cmax2]
+				tmptarget2 = target[rmin2:rmax2,cmin2:cmax2]
+				tmpsize = tmptarget2.shape
+				targetzero = numpy.zeros((tmpsize[0], tmpsize[1]), numpy.int8)
+				targetzero = targetzero + 1 * numpy.logical_and(numpy.logical_and((ref_mat2 - height[p] < 0), tmptarget2 == 0), ref_mat2 >= min)
+				
+				#Fill target and retrieve new points
+				if 1 in targetzero:
+					target[p] = 1
+					for o in numpy.argwhere(targetzero==1):
+						q = (rmin2 + o[0], cmin2 + o[1])
+						target[q] = 1
+						new_pt.append(q)
 	return new_pt
 	
-def detect_up(ref_p, height, max, target):
-	new_pt=[]
-	nbh = neighborhood(ref_p)
-	#new_pt.empty()
-	for n in nbh:
-		if in_image(n,w,h) and height[n] >= height[ref_p] and target[n]==0 and height[n]<=max:
-			target[n] = 1
-			new_pt.append(n)
+def detect_up(ref_p, height, threshold, max, target):
+	new_pt = []
+	if height[ref_p] < max:
+	
+	#First tests to see if D8 matrix is inside raster
+		if ref_p[0] - 1 >= 0:
+			rmin = ref_p[0] - 1
+		else:
+			rmin = 0
+		if ref_p[0] + 2 <= w:
+			rmax = ref_p[0] + 2
+		else:
+			rmax = w
+		if ref_p[1] - 1 >= 0:
+			cmin = ref_p[1] - 1
+		else:
+			cmin = 0
+		if ref_p[1] + 2 <= h:
+			cmax = ref_p[1] + 2
+		else:
+			cmax = h
+		
+		#D8 comparison level 1	
+		ref_mat = height[rmin:rmax,cmin:cmax]
+		tmptarget = target[rmin:rmax,cmin:cmax]
+		tmpsize = tmptarget.shape
+		targetzero = numpy.zeros((tmpsize[0], tmpsize[1]), numpy.int8)
+		targetzero = targetzero + 1 * numpy.logical_and(numpy.logical_and((ref_mat - height[ref_p] > 0),tmptarget==0), ref_mat <= max)
+		# print ref_p, height[ref_p]
+		# print rmin, rmax, cmin, cmax
+		# print tmptarget, ref_mat
+		# print tmpsize
+		# raw_input()
+		
+		#Fill target et retrieve new points
+		for n in numpy.argwhere(targetzero==1):
+			p = (n[0] + rmin, n[1] + cmin)
+			target[p] = 1
+			new_pt.append(p)
+		
+		tmptarget = tmptarget + targetzero
+		#First test to see if level 2 D8 matrix is inside raster
+		for n in numpy.argwhere(tmptarget==0):
+			p = (n[0] + rmin, n[1] + cmin)
+			if p[0] - 1 >= 0:
+				rmin2 = p[0] - 1
+			else:
+				rmin2 = 0
+			if p[0] + 2 <= w:
+				rmax2 = p[0] + 2
+			else:
+				rmax2 = w
+			if p[1] - 1 >= 0:
+				cmin2 = p[1] - 1
+			else:
+				cmin2 = 0
+			if p[1] + 2 <= h:
+				cmax2 = p[1] + 2
+			else:
+				cmax2 = h
+			#D8 comparison level 2
+			if height[p] >= height[ref_p] - threshold:
+				ref_mat2 = height[rmin2:rmax2,cmin2:cmax2]
+				tmptarget2 = target[rmin2:rmax2,cmin2:cmax2]
+				tmpsize = tmptarget2.shape
+				targetzero = numpy.zeros((tmpsize[0], tmpsize[1]), numpy.int8)
+				targetzero = targetzero + 1 * numpy.logical_and(numpy.logical_and((ref_mat2 - height[p] > 0), tmptarget2 == 0), ref_mat2 <= max)
+				
+				#Fill target and retrieve new points
+				if 1 in targetzero:
+					target[p] = 1
+					for o in numpy.argwhere(targetzero==1):
+						q = (rmin2 + o[0], cmin2 + o[1])
+						target[q] = 1
+						new_pt.append(q)
 	return new_pt
 
-def ski_slope_down(ref_p, height, min, target):
-	np = detect_down(ref_p, height, min, target)
+def ski_slope_down(ref_p, height, threshold, min, target):
+	np = detect_down(ref_p, height, threshold, min, target)
 	for p in np:
-		ski_slope_down(p, height, min, target)
+		ski_slope_down(p, height, threshold, min, target)
 		
-def ski_slope_up(ref_p, height, max, target):
-	np = detect_up(ref_p, height, max, target)
+def ski_slope_up(ref_p, height, threshold, max, target):
+	np = detect_up(ref_p, height, threshold, max, target)
 	for p in np:
-		ski_slope_up(p, height, max, target)
+		ski_slope_up(p, height, threshold, max, target)
 
+'''
+test = numpy.array([(100,99,100,102,102), (102,102,98, 103, 103), (100,95,96,97,100), (94,95,96,97,98), (100,100,95,100,100)])
+
+w,h=test.shape
+testnew = numpy.zeros((w, h)).astype(numpy.bool)
+
+sp=(0,2)
+testnew[sp]=1
+
+ski_slope_down(sp, test,2,90, testnew)
+
+print test
+print testnew
+'''
 # load complete raster
 img = gdal.Open('C:\ds_test_data\ign_mnt25_alpes.tif')
 band1 = img.GetRasterBand(1)
@@ -122,6 +269,8 @@ for sta in resort:
 	w,h = height.shape
 	
 	print "raster extracted"
+	print w, h
+	#raw_input()
 
 	# load starting points
 	cur=myconn.cursor()
@@ -178,19 +327,27 @@ for sta in resort:
 	
 	print "points sorted"
 
-	threshold = 0 # allow for sligth descent (not strict ascent) 
+	threshold = 5 # allow for sligth descent from bottom or ascent from top
 
 	# initialise result image where pixels in domain will be tagged to True
 	fromtop=numpy.zeros((w, h)).astype(numpy.int)
 	frombot=numpy.zeros((w, h)).astype(numpy.int)
 
 	#ski area computation
-	for p in pth:
-		ski_slope_down(p, height, minh, fromtop)
-	# for p in ptb:
-		# ski_slope_up(p, height, maxh, frombot)
+	count=0
 	
-	ski_area=fromtop #frombot*fromtop
+	for p in pth:
+		ski_slope_down(p, height, threshold, minh, fromtop)
+	
+	print "down done"
+	#raw_input()
+	
+	for p in ptb:
+		ski_slope_up(p, height, threshold, maxh, frombot)
+	
+	ski_area=frombot*fromtop
+	
+	
 	
 	#create raster from ski_area array
 	driver = gdal.GetDriverByName("GTiff")

@@ -221,7 +221,7 @@ for sta in resort:
 		ski_slope_down(p, height, threshold, minh, fromtop)
 	
 	print "down done"
-	raw_input()
+	#raw_input()
 	
 	for p in ptb:
 		ski_slope_up(p, height, threshold, maxh, frombot)
